@@ -90,39 +90,51 @@ handle_exit() {
    esac
 }
 
+check_ports() {
+   for PORT in "${PORTS[@]}" ; do
+      if [ ! netstat -ptnl | grep ":${PORT}\s*.*LISTEN" > /dev/null ]; then
+         MESSAGE="Network port ${PORT} is not open or listening."
+         exit 1;
+      else
+         log "Network port ${PORT} is open and listening."
+      fi
+   done
+   log "All ${#PORTS[@]} network ports open and listening."
+}
+
+check_processes() {
+   for PROC in "${PROCESSES[@]}" ; do
+      if [ ! ps -aux | grep "${PROC}" > /dev/null ]; then
+         MESSAGE="Process ${PROC} is not running."
+         exit 1;
+      else
+         log "Process ${PROC} is running."
+      fi
+   done
+   log "All ${#PROCESSES[@]} processes running."
+}
+
+check_containers() {
+   for CONTAINER in "${CONTAINERS[@]}" ; do
+      if [ ! docker ps -f "name=${CONTAINER}" -f "status=running" | grep "${CONTAINER}" > /dev/null ]; then
+         MESSAGE="Container ${CONTAINER} is not running."
+         exit 1;
+      else
+         log "Container ${CONTAINER} is running."
+      fi
+   done
+   log "All ${#CONTAINERS[@]} containers running."
+}
+
 trap handle_error ERR
 trap handle_exit EXIT
 
 echo "###  Starting server health check at $(date +'%F %T.%3N %Z')  ###"
 
-for PORT in "${PORTS[@]}" ; do
-   if ! netstat -ptnl | grep ":${PORT}\s*.*LISTEN" > /dev/null ; then
-      MESSAGE="Network port ${PORT} is not open or listening."
-      exit 1;
-   else
-      log "Network port ${PORT} is open and listening."
-   fi
-done
-log "All ${#PORTS[@]} network ports open and listening."
+check_ports
 
-for PROC in "${PROCESSES[@]}" ; do
-   if ! ps -aux | grep "${PROC}" > /dev/null ; then
-      MESSAGE="Process ${PROC} is not running."
-      exit 1;
-   else
-      log "Process ${PROC} is running."
-   fi
-done
-log "All ${#PROCESSES[@]} processes running."
+check_processes
 
-for CONTAINER in "${CONTAINERS[@]}" ; do
-   if ! docker ps -f "name=${CONTAINER}" -f "status=running" | grep "${CONTAINER}" > /dev/null ; then
-      MESSAGE="Container ${CONTAINER} is not running."
-      exit 1;
-   else
-      log "Container ${CONTAINER} is running."
-   fi
-done
-log "All ${#CONTAINERS[@]} containers running."
+check_containers
 
 exit 0;
